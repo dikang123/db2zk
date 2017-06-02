@@ -24,7 +24,7 @@ class Wechat:
 
 # __main__
 if __name__=='__main__':
-    url="http://127.0.0.1:8080/wechat"
+    url="http://127.0.0.1:8080/msg"
     tos="10086"
     content="[P0][db2zk TEST!!]"
     wechat=Wechat(url, tos, content)

@@ -21,21 +21,28 @@ class Database:
     def close(self):
         self.db.close()
 
-    def test(self):
+    def version(self):
         cursor = self.db.cursor()
         cursor.execute("SELECT VERSION()")
         data = cursor.fetchone()
         print "Database version : %s " % data
 
     def query(self):
-        sql="SELECT * from tbl"
+        sqlDb="fill sql here"
+        sqlRoute="fill sql here"
         try:
+            # query db records from mysql
             cursor = self.db.cursor()
-            cursor.execute(sql)
-            results = cursor.fetchall()
-            return results
-        except:
-            print "Error: unable to fecth data"
+            cursor.execute(sqlDb)
+            dbs = cursor.fetchall()
+            # query route records from mysql
+            cursor.execute(sqlRoute)
+            routes = cursor.fetchall()
+            # return data
+            return dbs, routes
+        except Exception,e:
+            print e
+            return None, None
 
 # __main__
 if __name__=='__main__':
@@ -44,7 +51,7 @@ if __name__=='__main__':
     username="username"
     password="password"
     dbname="dbname"
-    database =Database(host, port, username, password, dbname)
+    database = Database(host, port, username, password, dbname)
     database.connect()
-    database.query()
+    database.version()
     database.close()
