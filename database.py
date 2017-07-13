@@ -28,8 +28,8 @@ class Database:
         print "Database version : %s " % data
 
     def query(self):
-        sqlDb="fill sql here"
-        sqlRoute="fill sql here"
+        sqlDb="sql"
+        sqlRoute="sql"
         try:
             # query db records from mysql
             cursor = self.db.cursor()

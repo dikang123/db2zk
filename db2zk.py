@@ -4,7 +4,7 @@
 # Author: ye.zhiqin@outlook.com
 # Date  : 2017/5/17
 
-import os
+import sys
 from database import Database
 from zookeeper import ZooKeeper
 from wechat import Wechat
@@ -27,10 +27,10 @@ try:
     database.close()
 except:
     print "Fatal: query from database error"
-    os.exit(-1)
+    sys.exit(-1)
 
 # sync db data to zk
-zookeeper = ZooKeeper(endpoint)
+zookeeper = ZooKeeper(endpoint, root="/dynamicDataSource/dbconfig")
 zookeeper.connect()
 zookeeper.init()
 
@@ -60,15 +60,18 @@ if zk_dbs is not None and len(zk_dbs_remain) > 0:
     for (zk_db, routes) in zk_routes.items():
         for route in routes:
             is_remain = False
-            print "%s->%d" % (zk_db, route)
+            print "Check: %s/%s" % (zk_db, route)
             for mysql_route in mysql_routes:
                 address = mysql_route[2]
                 port = mysql_route[3]
                 endpoint = "%s:%d" % (address, port)
-                appName = mysql_route[12]
-                routeKey = mysql_route[13]
+                appName = mysql_route[13]
+                routeKey = mysql_route[14]
                 routeValue = "%s_%s" % (appName, routeKey)
+                print "Endpoint: %s" % endpoint
+                print "Route: %s" % routeValue
                 if endpoint == zk_db and routeValue == route:
+                    print "Match!"
                     is_remain = True
                     break
             if not is_remain:
@@ -78,13 +81,13 @@ else:
     zk_routes = None
 
 # create db node in zookeeper
-zk_db_data="""fill data here"""
+zk_db_data="""data"""
+
 for mysql_db in mysql_dbs:
     address = mysql_db[2]
     port = mysql_db[3]
     endpoint = "%s:%d" % (address, port)
     data = bytes(zk_db_data)
-    print "create %s" % (endpoint)
     zookeeper.createDb(endpoint, data)
 
 # create route node in zookeeper
@@ -96,7 +99,6 @@ for mysql_route in mysql_routes:
     appName = mysql_route[13]
     routeKey = mysql_route[14]
     routeValue = "%s_%s" % (appName, routeKey)
-    print "create %s/%s" % (endpoint, routeValue)
     zookeeper.createRoute(endpoint, routeValue, data)
 
 zookeeper.close()

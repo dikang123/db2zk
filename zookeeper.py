@@ -41,7 +41,7 @@ class ZooKeeper:
                     children = self.zk.get_children(path)
                     routes[db] = children
                 else:
-                    print "Warning: something stranger"
+                    print "warning: something stranger"
             return routes
         else:
             return None
@@ -61,12 +61,18 @@ class ZooKeeper:
     def createDb(self, db, data):
         node = "%s/%s" % (self.root, db)
         if not self.zk.exists(node):
+            print "create node: %s/%s" % (self.root, db)
             self.zk.create(node, data)
+        else:
+            print "node exist: %s/%s" % (self.root, db)
 
     def createRoute(self, db, route, data):
         node = "%s/%s/%s" % (self.root, db, route)
         if not self.zk.exists(node):
+            print "create node: %s/%s/%s" % (self.root, db, route)
             self.zk.create(node, data)
+        else:
+            print "node exist: %s/%s/%s" % (self.root, db, route)
 
     def getApp(self):
         if self.zk.exists(self.root):

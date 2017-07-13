@@ -26,6 +26,6 @@ class Wechat:
 if __name__=='__main__':
     url="http://127.0.0.1:8080/msg"
     tos="10086"
-    content="[P0][db2zk TEST!!]"
+    content="[P0][Content]"
     wechat=Wechat(url, tos, content)
     wechat.send()
