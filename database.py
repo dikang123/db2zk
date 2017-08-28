@@ -3,11 +3,14 @@
 #
 # Author: ye.zhiqin@outlook.com
 # Date  : 2017/5/17
+# Modify: 2017/8/24
 
+import logging
 import MySQLdb
 
 class Database:
     def __init__(self, host, port, username, password, dbname):
+        logging.basicConfig()
         self.host=host
         self.port=port
         self.username=username
@@ -28,8 +31,8 @@ class Database:
         print "Database version : %s " % data
 
     def query(self):
-        sqlDb="sql"
-        sqlRoute="sql"
+        sqlDb="SELECT 12 fields FROM dbtable;"
+        sqlRoute="SELECT 20 fields FROM dbtable JOIN routetable ON dbtable.dbID=routetable.dbID ORDER BY dbtable.dbID, routetable.routeKey;"
         try:
             # query db records from mysql
             cursor = self.db.cursor()
@@ -41,7 +44,26 @@ class Database:
             # return data
             return dbs, routes
         except Exception,e:
-            print e
+            logging.error("query database error")
+            return None, None
+
+    def queryUpdated(self, actionTime):
+        sqlDb="SELECT 12 fields FROM dbtable WHERE dbtable.actionTime>%d ORDER BY dbtable.dbID;" % actionTime
+        sqlRoute="SELECT 20 fields FROM dbtable JOIN routetable ON dbtable.dbID=routetable.dbID WHERE routetable.actionTime>%d ORDER BY dbtable.dbID, routetable.routeKey;" % actionTime
+        try:
+            # query db records from mysql
+            cursor = self.db.cursor()
+            cursor.execute(sqlDb)
+            dbs = cursor.fetchall()
+            # query route records from mysql
+            cursor.execute(sqlRoute)
+            routes = cursor.fetchall()
+            # return data
+            logging.info("updated db: %s", dbs)
+            logging.info("updated route: %s", routes)
+            return dbs, routes
+        except Exception,e:
+            logging.error("query database error")
             return None, None
 
 # __main__
@@ -54,4 +76,5 @@ if __name__=='__main__':
     database = Database(host, port, username, password, dbname)
     database.connect()
     database.version()
+    database.queryUpdated(20170801000000)
     database.close()

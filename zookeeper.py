@@ -3,6 +3,7 @@
 #
 # Author: ye.zhiqin@outlook.com
 # Date  : 2017/5/17
+# Modify: 2017/8/24
 
 import logging
 from kazoo.client import KazooClient
@@ -25,99 +26,116 @@ class ZooKeeper:
         if not self.zk.exists(self.root):
             self.zk.ensure_path(self.root)
 
-    def getDb(self):
+    def getApplication(self):
         if self.zk.exists(self.root):
-            dbs = self.zk.get_children(self.root)
-            return dbs
+            apps = self.zk.get_children(self.root)
+            return apps
         else:
             return None
 
-    def getRoute(self, dbs=None):
-        if dbs is not None:
+    def getDb(self, apps=None):
+        if apps is not None:
+            pairs = []
+            for app in apps:
+                path = "%s/%s" % (self.root, app)
+                if self.zk.exists(path):
+                    dbs = self.zk.get_children(path)
+                    for db in dbs:
+                        pair = (app, db)
+                        pairs.append(pair)
+            return pairs
+        else:
+            return None
+
+    def getRoute(self, pairs=None):
+        if pairs is not None:
             routes = {}
-            for db in dbs:
-                path = "%s/%s" % (self.root, db)
+            for pair in pairs:
+                path = "%s/%s/%s" % (self.root, pair[0], pair[1])
                 if self.zk.exists(path):
                     children = self.zk.get_children(path)
-                    routes[db] = children
+                    routes[pair] = children
                 else:
-                    print "warning: something stranger"
+                    logging.warning("%s is strange", path)
             return routes
         else:
             return None
 
-    def deleteDb(self, db):
-        node = "%s/%s" % (self.root, db)
-        print node
-        if self.zk.exists(node):
-            self.zk.delete(node, recursive=True)
-
-    def deleteRoute(self, db, route):
-        node = "%s/%s/%s" % (self.root, db, route)
-        print node
-        if self.zk.exists(node):
-            self.zk.delete(node, recursive=True)
-
-    def createDb(self, db, data):
-        node = "%s/%s" % (self.root, db)
-        if not self.zk.exists(node):
-            print "create node: %s/%s" % (self.root, db)
-            self.zk.create(node, data)
-        else:
-            print "node exist: %s/%s" % (self.root, db)
-
-    def createRoute(self, db, route, data):
-        node = "%s/%s/%s" % (self.root, db, route)
-        if not self.zk.exists(node):
-            print "create node: %s/%s/%s" % (self.root, db, route)
-            self.zk.create(node, data)
-        else:
-            print "node exist: %s/%s/%s" % (self.root, db, route)
-
-    def getApp(self):
-        if self.zk.exists(self.root):
-            app = self.zk.get_children(self.root)
-            return app
-        else:
-            return None
-
-    def getAppIp(self, app):
+    def deleteApplication(self, app):
         node = "%s/%s" % (self.root, app)
         if self.zk.exists(node):
-            ip = self.zk.get_children(node)
-            return ip
-        else:
-            return None
+            logging.info("delete node %s" % node)
+            self.zk.delete(node, recursive=True)
 
-    def getAppIpPath(self, app, ip):
-        node = "%s/%s/%s" % (self.root, app, ip)
+    def deleteDb(self, pair):
+        node = "%s/%s/%s" % (self.root, pair[0], pair[1])
         if self.zk.exists(node):
-            path = self.zk.get_children(node)
-            return path
+            logging.info("delete node %s" % node)
+            self.zk.delete(node, recursive=True)
+
+    def deleteRoute(self, pair, route):
+        node = "%s/%s/%s/%s" % (self.root, pair[0], pair[1], route)
+        if self.zk.exists(node):
+            logging.info("delete node %s" % node)
+            self.zk.delete(node, recursive=True)
+
+    def createDb(self, appName, endpoint, data):
+        applicationNode = "%s/%s" % (self.root, appName)
+        dbNode = "%s/%s/%s" % (self.root, appName, endpoint)
+        if not self.zk.exists(applicationNode):
+            logging.info("create node: %s/%s" % (self.root, appName))
+            self.zk.create(applicationNode, b"")
+            logging.info("create node: %s/%s/%s" % (self.root, appName, endpoint))
+            self.zk.create(dbNode, data)
+        elif not self.zk.exists(dbNode):
+            logging.info("create node: %s/%s/%s" % (self.root, appName, endpoint))
+            self.zk.create(dbNode, data)
+        else:
+            logging.info("node exist: %s/%s/%s" % (self.root, appName, endpoint))
+
+    def createRoute(self, appName, endpoint, route, data):
+        node = "%s/%s/%s/%s" % (self.root, appName, endpoint, route)
+        if not self.zk.exists(node):
+            logging.info("create node: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+            self.zk.create(node, data)
+        else:
+            self.zk.set(node, data)
+            logging.info("node exists, set data: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+
+    # for checkers
+    def getChildren(self, branch=""):
+        node = self.root
+        if branch != "":
+            node = "%s/%s" % (self.root, branch)
+        if self.zk.exists(node):
+            children = self.zk.get_children(node)
+            return children
         else:
             return None
 
-    def getUpdateTime(self, app, ip, position):
-        node = "%s/%s/%s/%s" % (self.root, app, ip, position)
-        isLeaf = False
-        while not isLeaf:
-            children = self.zk.get_children(node)
-            if len(children) == 0:
-                isLeaf = True
-            else:
-                node = "%s/%s" % (node, children[0])
-        data, stat = self.zk.get(node)
-        return (node, data)
+    def getNodeData(self, branch):
+        node = self.root
+        if branch != "":
+            node = "%s/%s" % (self.root, branch)
+        if self.zk.exists(node):
+            return self.zk.get(node)
+        else:
+            return (None, None)
+
+    def getNodeDataWithRoot(self, trunck, branch):
+        node = trunck
+        if branch != "":
+            node = "%s/%s" % (trunck, branch)
+        if self.zk.exists(node):
+            return self.zk.get(node)
+        else:
+            return (None, None)
 
 # __main__
 if __name__=='__main__':
-    endpoint="127.0.0.1:2181"
+    endpoint="127.0.0.1:3181"
     zookeeper = ZooKeeper(endpoint)
     zookeeper.connect()
     zookeeper.init()
-    dbs = zookeeper.getDb()
-    print dbs
-    if dbs is not None:
-        routes = zookeeper.getRoute(dbs)
-        print routes
+    zookeeper.deleteApplication("supplyChainBillServer")
     zookeeper.close()
