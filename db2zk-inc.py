@@ -32,25 +32,27 @@ signal.signal(signal.SIGINT, stopSync)
 signal.signal(signal.SIGQUIT, stopSync)
 signal.signal(signal.SIGTERM, stopSync)
 
-zookeeper = ZooKeeper(endpoint, root="/dynamicDataSource/dbconfig")
-zookeeper.connect()
-zookeeper.init()
-
 if __name__ == '__main__':
     logging.info("=====Incremental Sync Started=====")
     lastTime = 0
 
+    zookeeper = ZooKeeper(endpoint, root="/dynamicDataSource/dbconfig")
+    zookeeper.connect()
+    zookeeper.init()
+
+    dbsysbase = Database(host, port, username, password, dbname)
+    dbsysbase.connect()
+
     while True:
+        time.sleep(1)
+
         book = shelve.open('data/book.db', writeback=True)
 
         # query changed db and route record
         try:
-            database = Database(host, port, username, password, dbname)
-            database.connect()
-            mysql_dbs, mysql_routes = database.queryUpdated(lastTime)
-            database.close()
+            mysql_dbs, mysql_routes = dbsysbase.queryUpdated(lastTime)
         except:
-            logging.error("query from database ERROR")
+            logging.error("query from MySQL ERROR")
             continue
 
         sNowTime = time.strftime("%Y%m%d%H%M%S", time.localtime())
@@ -100,7 +102,7 @@ if __name__ == '__main__':
             logging.info("No route record changed")
 
         book.close()
-        
-        time.sleep(1)
-    
+    #end of while
+
+    dbsysbase.close()
     zookeeper.close()
