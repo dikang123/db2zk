@@ -99,8 +99,12 @@ class ZooKeeper:
             logging.info("create node: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
             self.zk.create(node, data)
         else:
-            self.zk.set(node, data)
-            logging.info("node exists, set data: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+            zk_data, zk_stat = self.zk.get(node)
+            if zk_data != data: 
+                logging.info("node exists, data changed: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+                self.zk.set(node, data)
+            else:
+                logging.info("node exists, data keep: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
 
     # for checkers
     def getChildren(self, branch=""):
