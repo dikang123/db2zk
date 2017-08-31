@@ -91,7 +91,12 @@ class ZooKeeper:
             logging.info("create node: %s/%s/%s" % (self.root, appName, endpoint))
             self.zk.create(dbNode, data)
         else:
-            logging.info("node exist: %s/%s/%s" % (self.root, appName, endpoint))
+            zk_data, zk_stat = self.zk.get(dbNode)
+            if zk_data != data:
+                logging.info("node exists, data changed: %s/%s/%s" % (self.root, appName, endpoint))
+                self.zk.set(dbNode, data)
+            else:
+                logging.info("node exists: %s/%s/%s" % (self.root, appName, endpoint))
 
     def createRoute(self, appName, endpoint, route, data):
         node = "%s/%s/%s/%s" % (self.root, appName, endpoint, route)
