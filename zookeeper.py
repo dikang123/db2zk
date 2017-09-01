@@ -7,6 +7,7 @@
 
 import logging
 from kazoo.client import KazooClient
+from kazoo.retry import KazooRetry
 
 class ZooKeeper:
     def __init__(self, endpoint, root="/dynamicDataSource/dbconfig"):
@@ -16,7 +17,8 @@ class ZooKeeper:
         self.root=root
 
     def connect(self):
-        self.zk = KazooClient(hosts=self.endpoint)
+        retry = KazooRetry(max_tries=-1, max_delay=5)
+        self.zk = KazooClient(hosts=self.endpoint, connection_retry=retry)
         self.zk.start()
 
     def close(self):
