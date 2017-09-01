@@ -20,6 +20,7 @@ class Database:
 
     def connect(self):
         self.db = MySQLdb.connect(host=self.host, port=self.port, user=self.username, passwd=self.password, db=self.dbname, charset="utf8")
+        self.db.autocommit(True)
 
     def close(self):
         self.db.close()

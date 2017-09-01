@@ -44,9 +44,11 @@ if __name__ == '__main__':
     dbsysbase.connect()
 
     while True:
-        time.sleep(1)
+        time.sleep(5)
 
         book = shelve.open('data/book.db', writeback=True)
+
+        logging.info("check time: %s" % lastTime)
 
         # query changed db and route record
         try:
@@ -56,8 +58,7 @@ if __name__ == '__main__':
             continue
 
         sNowTime = time.strftime("%Y%m%d%H%M%S", time.localtime())
-        logging.info("next check time: %s" % sNowTime)
-        lastTime = int(sNowTime)
+        lastTime = int(sNowTime) - 30
         
         # sync db change to zookeeper
         if mysql_dbs is not None and len(mysql_dbs) > 0:
