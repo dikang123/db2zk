@@ -28,14 +28,14 @@ logging.info("=====Sync Started=====")
 
 # only process last 6 hours changes or change from last synchronization
 now = datetime.datetime.now()
-    lastSync = now - datetime.timedelta(hours=6)
-    tsRec = shelve.open('data/global.db', writeback=True)
-    if tsRec.has_key('syncTime'):
-            lastSync = tsRec['syncTime']
-            tsRec['syncTime'] = now 
-            tsRec.close()
-            lastTime = int(lastSync.strftime('%Y%m%d%H%M%S'))
-            logging.info("last sync time: %d" % lastTime)
+lastSync = now - datetime.timedelta(hours=6)
+tsRec = shelve.open('data/global.db', writeback=True)
+if tsRec.has_key('syncTime'):
+    lastSync = tsRec['syncTime']
+tsRec['syncTime'] = now 
+tsRec.close()
+lastTime = int(lastSync.strftime('%Y%m%d%H%M%S'))
+logging.info("last sync time: %d" % lastTime)
 
 # query db and route record
 try:
