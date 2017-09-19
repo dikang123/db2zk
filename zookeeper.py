@@ -4,6 +4,7 @@
 # Author: ye.zhiqin@outlook.com
 # Date  : 2017/5/17
 # Modify: 2017/8/24
+# Modify: 2017/9/19
 
 import logging
 from kazoo.client import KazooClient
@@ -112,6 +113,15 @@ class ZooKeeper:
                 self.zk.set(node, data)
             else:
                 logging.info("node exists, data keep: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+
+    def reCreateRoute(self, appName, endpoint, route, data):
+        node = "%s/%s/%s/%s" % (self.root, appName, endpoint, route)
+        if not self.zk.exists(node):
+            logging.info("create node: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+            self.zk.create(node, data)
+        else:
+            logging.info("node exists, update node data: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+            self.zk.set(node, data)
 
     # for checkers
     def getChildren(self, branch=""):

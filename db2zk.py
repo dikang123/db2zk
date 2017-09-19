@@ -4,8 +4,11 @@
 # Author: ye.zhiqin@outlook.com
 # Date  : 2017/5/17
 # Modify: 2017/8/24
+# Modify: 2017/9/19
 
+import datetime
 import logging
+import shelve
 import sys
 from database import Database
 from zookeeper import ZooKeeper
@@ -22,11 +25,24 @@ dbname="dbname"
 endpoint="127.0.0.1:3181"
 
 logging.info("=====Sync Started=====")
+
+# only process last 6 hours changes or change from last synchronization
+now = datetime.datetime.now()
+    lastSync = now - datetime.timedelta(hours=6)
+    tsRec = shelve.open('data/global.db', writeback=True)
+    if tsRec.has_key('syncTime'):
+            lastSync = tsRec['syncTime']
+            tsRec['syncTime'] = now 
+            tsRec.close()
+            lastTime = int(lastSync.strftime('%Y%m%d%H%M%S'))
+            logging.info("last sync time: %d" % lastTime)
+
 # query db and route record
 try:
     database = Database(host, port, username, password, dbname)
     database.connect()
     mysql_dbs, mysql_routes = database.query()
+    mysql_dbs_updated, mysql_routes_updated = database.queryUpdated(lastTime)
     database.close()
 except:
     logging.error("query from database ERROR")
@@ -50,7 +66,10 @@ for zk_app in zk_apps:
             break
     if not is_remain:
         logging.info("Node %s is vanishing. So delete it from zookeeper" % zk_app)
-        zookeeper.deleteApplication(zk_app)
+        try:
+            zookeeper.deleteApplication(zk_app)
+        except:
+            zookeeper.connect()
     else:
         logging.info("Node %s remained." % zk_app)
 
@@ -71,7 +90,10 @@ if zk_apps is not None and len(zk_apps_remain) > 0:
                 break
         if not is_remain:
             logging.info("Node %s/%s is vanishing. So delete it from zookeeper" % zk_pair)
-            zookeeper.deleteDb(zk_pair)
+            try:
+                zookeeper.deleteDb(zk_pair)
+            except:
+                zookeeper.connect()
         else:
             logging.info("Node %s/%s remained." % zk_pair)
 
@@ -81,9 +103,12 @@ if len(zk_pairs_remain) > 0:
     for (zk_pair, routes) in zk_routes.items():
         for route in routes:
             is_remain = False
-            logging.info("Check: %s/%s/%s" % (zk_pair[0], zk_pair[1], route))
+            #logging.info("Check: %s/%s/%s" % (zk_pair[0], zk_pair[1], route))
             path = "%s/%s/%s" % (zk_pair[0], zk_pair[1], route)
-            zk_data, stat = zookeeper.getNodeData(path)
+            try:
+                zk_data, stat = zookeeper.getNodeData(path)
+            except:
+                zookeeper.connect()
             data = zk_data.decode()
             for mysql_route in mysql_routes:
                 appName = mysql_route[1]
@@ -96,28 +121,51 @@ if len(zk_pairs_remain) > 0:
                 routeValue = "%s_%s" % (appName, routeKey)
 
                 if appName == zk_pair[0] and endpoint == zk_pair[1] and routeValue == route and dbName == data:
-                    logging.info("MATCHED: %s %s %s [%s]" % (appName, endpoint, routeValue, data))
+                    #logging.info("MATCHED: %s %s %s [%s]" % (appName, endpoint, routeValue, data))
                     is_remain = True
                     break
             if not is_remain:
                 logging.info("Node %s/%s/%s [%s] is vanishing. So delete it from zookeeper" % (zk_pair[0], zk_pair[1], route, data))
-                zookeeper.deleteRoute(zk_pair, route)
-else:
-    zk_routes = None
+                try:
+                    zookeeper.deleteRoute(zk_pair, route)
+                except:
+                    zookeeper.connect()
+                # create related route node
+                for mysql_route in mysql_routes:
+                    appName = mysql_route[1]
+                    address = mysql_route[2]
+                    port = mysql_route[3]
+                    dbName = mysql_route[4]
+                    #appName = mysql_route[13]
+                    routeKey = mysql_route[14]
+
+                    endpoint = "%s:%d" % (address, port)
+                    routeValue = "%s_%s" % (appName, routeKey)
+
+                    if appName == zk_pair[0] and routeValue == route:
+                        logging.info("try to create related node: %s %s %s [%s]" % (appName, endpoint, routeValue, data))
+                        try:
+                            zookeeper.reCreateRoute(appName, endpoint, routeValue, data)
+                        except:
+                            zookeeper.connect()
+
+logging.info("=====from db to zookeeper=====")
 
 # create db node in zookeeper
-zk_db_data="""data"""
-
-for mysql_db in mysql_dbs:
+for mysql_db in mysql_dbs_updated:
     appName = mysql_db[1]
     address = mysql_db[2]
     port = mysql_db[3]
     endpoint = "%s:%d" % (address, port)
     data = bytes(zk_db_data)
-    zookeeper.createDb(appName, endpoint, data)
+    zk_db_data="""data"""
+    try:
+        zookeeper.createDb(appName, endpoint, data)
+    except:
+        zookeeper.connect()
 
 # create route node in zookeeper
-for mysql_route in mysql_routes:
+for mysql_route in mysql_routes_updated:
     appName = mysql_route[1]
     address = mysql_route[2]
     port = mysql_route[3]
@@ -125,6 +173,9 @@ for mysql_route in mysql_routes:
     data = bytes(mysql_route[4])
     routeKey = mysql_route[14]
     routeValue = "%s_%s" % (appName.strip(), routeKey.strip())
-    zookeeper.createRoute(appName, endpoint, routeValue, data)
+    try:
+        zookeeper.createRoute(appName, endpoint, routeValue, data)
+    except:
+        zookeeper.connect()
 
 zookeeper.close()
