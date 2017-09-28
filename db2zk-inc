@@ -3,6 +3,7 @@
 #
 # Author: ye.zhiqin@outlook.com
 # Date  : 2017/8/24
+# Date  : 2017/9/28
 
 import logging
 import shelve
@@ -77,6 +78,8 @@ if __name__ == '__main__':
                 else:
                     account = {'actionTime': actionTime, 'checkTime': 0}
                     book[str(appName)] = account
+            unixTs = int(time.time() * 1e6)
+            zookeeper.createTs(unixTs)
         else:
             logging.info("No db record changed")
 
@@ -99,6 +102,8 @@ if __name__ == '__main__':
                 else:
                     account = {'actionTime': actionTime, 'checkTime': 0}
                     book[str(appName)] = account
+            unixTs = int(time.time() * 1e6)
+            zookeeper.createTs(unixTs)
         else:
             logging.info("No route record changed")
 

@@ -5,6 +5,7 @@
 # Date  : 2017/5/17
 # Modify: 2017/8/24
 # Modify: 2017/9/19
+# Modify: 2017/9/28
 
 import logging
 from kazoo.client import KazooClient
@@ -113,6 +114,15 @@ class ZooKeeper:
                 self.zk.set(node, data)
             else:
                 logging.info("node exists, data keep: %s/%s/%s/%s" % (self.root, appName, endpoint, route))
+
+    def createTs(self, ts):
+        node = "/dynamicDataSource/refreshTime"
+        if not self.zk.exists(node):
+            logging.info("create node: %s" % node)
+            self.zk.create(node, bytes(ts))
+        else:
+            logging.info("%s exists, update timestamp: %s" % (node, ts))
+            self.zk.set(node, bytes(ts))
 
     def reCreateRoute(self, appName, endpoint, route, data):
         node = "%s/%s/%s/%s" % (self.root, appName, endpoint, route)

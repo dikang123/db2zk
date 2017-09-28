@@ -5,11 +5,13 @@
 # Date  : 2017/5/17
 # Modify: 2017/8/24
 # Modify: 2017/9/19
+# Modify: 2017/9/28
 
 import datetime
 import logging
 import shelve
 import sys
+import time
 from database import Database
 from zookeeper import ZooKeeper
 
@@ -52,6 +54,8 @@ except:
 zookeeper = ZooKeeper(endpoint, root="/dynamicDataSource/dbconfig")
 zookeeper.connect()
 zookeeper.init()
+
+logging.info("=====from zookeeper to database=====")
 
 # delete vanishing app node from zookeeper
 zk_apps_remain = []
@@ -146,36 +150,44 @@ if len(zk_pairs_remain) > 0:
                         logging.info("try to create related node: %s %s %s [%s]" % (appName, endpoint, routeValue, data))
                         try:
                             zookeeper.reCreateRoute(appName, endpoint, routeValue, data)
+                            unixTs = int(time.time() * 1e6)
+                            zookeeper.createTs(unixTs)
                         except:
                             zookeeper.connect()
 
 logging.info("=====from db to zookeeper=====")
 
 # create db node in zookeeper
-for mysql_db in mysql_dbs_updated:
-    appName = mysql_db[1]
-    address = mysql_db[2]
-    port = mysql_db[3]
-    endpoint = "%s:%d" % (address, port)
-    data = bytes(zk_db_data)
-    zk_db_data="""data"""
-    try:
-        zookeeper.createDb(appName, endpoint, data)
-    except:
-        zookeeper.connect()
+if mysql_dbs_updated is not None and len(mysql_dbs_updated) > 0:
+    for mysql_db in mysql_dbs_updated:
+        appName = mysql_db[1]
+        address = mysql_db[2]
+        port = mysql_db[3]
+        endpoint = "%s:%d" % (address, port)
+        data = bytes(zk_db_data)
+        zk_db_data="""data"""
+        try:
+            zookeeper.createDb(appName, endpoint, data)
+        except:
+            zookeeper.connect()
+    unixTs = int(time.time() * 1e6)
+    zookeeper.createTs(unixTs)
 
 # create route node in zookeeper
-for mysql_route in mysql_routes_updated:
-    appName = mysql_route[1]
-    address = mysql_route[2]
-    port = mysql_route[3]
-    endpoint = "%s:%d" % (address, port)
-    data = bytes(mysql_route[4])
-    routeKey = mysql_route[14]
-    routeValue = "%s_%s" % (appName.strip(), routeKey.strip())
-    try:
-        zookeeper.createRoute(appName, endpoint, routeValue, data)
-    except:
-        zookeeper.connect()
+if mysql_routes_updated is not None and len(mysql_routes_updated) > 0:
+    for mysql_route in mysql_routes_updated:
+        appName = mysql_route[1]
+        address = mysql_route[2]
+        port = mysql_route[3]
+        endpoint = "%s:%d" % (address, port)
+        data = bytes(mysql_route[4])
+        routeKey = mysql_route[14]
+        routeValue = "%s_%s" % (appName.strip(), routeKey.strip())
+        try:
+            zookeeper.createRoute(appName, endpoint, routeValue, data)
+        except:
+            zookeeper.connect()
+    unixTs = int(time.time() * 1e6)
+    zookeeper.createTs(unixTs)
 
 zookeeper.close()
